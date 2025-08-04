@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="view_sale_order_cancel_form_inherit_cc_bcc" model="ir.ui.view">
+        <field name="name">sale.order.cancel.form.inherit.cc.bcc</field>
+        <field name="model">sale.order.cancel</field>
+        <field name="inherit_id" ref="sale.sale_order_cancel_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='recipient_ids']" position="after">
+                <field name="cc_email_partner_ids"
+                       widget="many2many_tags_email"
+                       placeholder="Cc Recipients"
+                       options="{'no_quick_create': True}"
+                       context="{'show_email': True, 'form_view_ref': 'base.view_partner_simple_form'}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
