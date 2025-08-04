@@ -6,9 +6,11 @@
     'description': 'This module extends the email sending wizard to include CC and BCC fields for email addresses.',
     'author': 'Your Name',
     'website': 'https://www.example.com',
-    'depends': ['account'],
+    'depends': ['account', 'sale', 'sale_management'],
     'data': [
         'views/inherited_account_move_send_wizard_form.xml',
+        'views/inherited_mail_compose_message_form.xml',
+        'views/inherited_sale_order_cancel_form.xml',
     ],
     'installable': True,
     'application': False,

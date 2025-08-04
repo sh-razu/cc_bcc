@@ -6,13 +6,10 @@
         <field name="inherit_id" ref="account.account_move_send_wizard_form"/>
         <field name="arch" type="xml">
             <xpath expr="//div[3]/group[1]/div[1]" position="after">
-                <label for="cc_email_partner_ids" string="Cc"/>
-                <div>
-                    <field name="cc_email_partner_ids" widget="many2many_tags_email"
-                           placeholder="Cc recipients" options="{'no_quick_create': True}"
-                           context="{'show_email': True, 'form_view_ref': 'base.view_partner_simple_form'}"/>
+                <field name="cc_email_partner_ids" widget="many2many_tags_email"
+                       placeholder="Cc recipients" options="{'no_quick_create': True}"
+                       context="{'show_email': True, 'form_view_ref': 'base.view_partner_simple_form'}"/>
 
-                </div>
             </xpath>
             <xpath expr="//field[@name='mail_partner_ids']" position="after">
                 <field name="cc_email_partner_ids" invisible="1"/>
