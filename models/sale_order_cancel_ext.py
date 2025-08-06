@@ -6,6 +6,24 @@ class SaleOrderCancel(models.TransientModel):
     cc_email_partner_ids = fields.Many2many('res.partner', 'sale_cancel_cc_partner_rel', string='CC Recipients')
     bcc_email_partner_ids = fields.Many2many('res.partner', 'sale_cancel_bcc_partner_rel', string='BCC Recipients')
 
+    def default_get(self, fields_list):
+        defaults = super().default_get(fields_list)
+
+        order_id = self._context.get('default_order_id')
+        if not order_id:
+            return defaults
+
+        order = self.env['sale.order'].browse(order_id)
+        partner_ids = []
+
+        if order.user_id and order.user_id.partner_id:
+            partner_ids.append(order.user_id.partner_id.id)
+
+        if partner_ids:
+            defaults['cc_email_partner_ids'] = [(6, 0, list(set(partner_ids)))]
+
+        return defaults
+
     def action_send_mail_and_cancel(self):
         self.ensure_one()
 

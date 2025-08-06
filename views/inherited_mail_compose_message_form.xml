@@ -5,8 +5,7 @@
         <field name="model">mail.compose.message</field>
         <field name="inherit_id" ref="mail.email_compose_message_wizard_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='partner_ids']" position="after">
-                <label for="cc_email_partner_ids" string="Cc"/>
+            <xpath expr="//field[@name='subject']" position="before">
                 <field name="cc_email_partner_ids"
                        widget="many2many_tags_email"
                        placeholder="Cc Recipients"
