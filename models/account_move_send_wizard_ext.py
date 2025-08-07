@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import UserError
 
 
 class AccountMoveSendWizardExt(models.TransientModel):
@@ -10,11 +11,7 @@ class AccountMoveSendWizardExt(models.TransientModel):
     def default_get(self, fields_list):
         defaults = super().default_get(fields_list)
 
-        res_ids = (
-                self._context.get('default_res_ids') or
-                self._context.get('default_move_ids') or
-                self._context.get('active_ids')
-        )
+        res_ids = (self._context.get('default_res_ids') or self._context.get('default_move_ids') or self._context.get('active_ids'))
 
         if not res_ids:
             return defaults
@@ -52,3 +49,36 @@ class AccountMoveSendWizardExt(models.TransientModel):
                 params['email_cc'] = ','.join(emails)
 
         return params
+
+    def action_send_and_print(self, allow_fallback_pdf=False):
+        self.ensure_one()
+
+        if not self.mail_partner_ids:
+            raise UserError("Please select at least one recipient in the 'To' field before sending.")
+
+        mail_to = ','.join(filter(None, self.mail_partner_ids.mapped('email')))
+        mail_cc = ','.join(filter(None, self.cc_email_partner_ids.mapped('email')))
+
+        mail = self.env['mail.mail'].create({
+            'subject': self.mail_subject,
+            'body_html': self.mail_body,
+            'email_from': self.env.user.email_formatted,
+            'email_to': mail_to,
+            'auto_delete': True,
+            **({'email_cc': mail_cc} if mail_cc else {}),
+        })
+
+        mail.send()
+        return {'type': 'ir.actions.act_window_close'}
+
+    @api.depends('mail_template_id', 'mail_lang')
+    def _compute_mail_subject_body_partners(self):
+        for wizard in self:
+            if wizard.mail_template_id:
+                # Get values as usual
+                wizard.mail_subject = self._get_default_mail_subject(wizard.move_id, wizard.mail_template_id, wizard.mail_lang)
+                wizard.mail_body = self._get_default_mail_body(wizard.move_id, wizard.mail_template_id, wizard.mail_lang)
+
+                block_templates = {'Invoice: Sending'}
+                if wizard.mail_template_id.name in block_templates:
+                    wizard.mail_partner_ids = False
