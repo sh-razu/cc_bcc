@@ -8,6 +8,7 @@
     'website': 'https://www.example.com',
     'depends': ['account', 'sale', 'sale_management'],
     'data': [
+        'data/mail_template_data_update.xml',
         'views/inherited_account_move_send_wizard_form.xml',
         'views/inherited_mail_compose_message_form.xml',
         'views/inherited_sale_order_cancel_form.xml',
