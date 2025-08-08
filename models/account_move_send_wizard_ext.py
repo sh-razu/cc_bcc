@@ -1,6 +1,6 @@
 from odoo import models, fields, api
 from odoo.exceptions import UserError
-
+import base64
 
 class AccountMoveSendWizardExt(models.TransientModel):
     _inherit = 'account.move.send.wizard'
@@ -56,6 +56,29 @@ class AccountMoveSendWizardExt(models.TransientModel):
         if not self.mail_partner_ids:
             raise UserError("Please select at least one recipient in the 'To' field before sending.")
 
+        move = self.move_id
+
+        # build attachments like server compute does
+        manual = [x for x in (self.mail_attachments_widget or []) if x.get('manual')]
+        widget = self._get_default_mail_attachments_widget(
+            move,
+            self.mail_template_id,
+            extra_edis=self.extra_edis or {},
+            pdf_report=self.pdf_report_id if (not self.pdf_report_id or self.pdf_report_id.exists()) else False,
+        )
+        # keep any manual files the user added
+        widget += manual
+
+        # collect actual ir.attachment ids
+        attachment_ids = []
+        for item in widget:
+            att_id = item.get('attachment_id') or item.get('id')
+            if att_id:
+                attachment_ids.append(att_id)
+        # dedupe
+        seen = set()
+        attachment_ids = [x for x in attachment_ids if not (x in seen or seen.add(x))]
+
         recipient_links = [(4, pid) for pid in self.mail_partner_ids.ids]
         mail_cc = ','.join(filter(None, self.cc_email_partner_ids.mapped('email')))
 
@@ -64,9 +87,17 @@ class AccountMoveSendWizardExt(models.TransientModel):
             'body_html': self.mail_body,
             'email_from': self.env.user.email_formatted,
             'recipient_ids': recipient_links,
-            'auto_delete': True,
+            'attachment_ids': [(4, x) for x in attachment_ids],
             **({'email_cc': mail_cc} if mail_cc else {}),
         })
+
+        move.message_post(
+            subject=self.mail_subject,
+            body=self.mail_body or '',
+            message_type='comment',
+            subtype_xmlid='mail.mt_note',  # log entry only (no notifications)
+            attachment_ids=attachment_ids,
+        )
 
         mail.send()
         return {'type': 'ir.actions.act_window_close'}
