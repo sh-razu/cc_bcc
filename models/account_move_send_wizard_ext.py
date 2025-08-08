@@ -56,14 +56,14 @@ class AccountMoveSendWizardExt(models.TransientModel):
         if not self.mail_partner_ids:
             raise UserError("Please select at least one recipient in the 'To' field before sending.")
 
-        mail_to = ','.join(filter(None, self.mail_partner_ids.mapped('email')))
+        recipient_links = [(4, pid) for pid in self.mail_partner_ids.ids]
         mail_cc = ','.join(filter(None, self.cc_email_partner_ids.mapped('email')))
 
         mail = self.env['mail.mail'].create({
             'subject': self.mail_subject,
             'body_html': self.mail_body,
             'email_from': self.env.user.email_formatted,
-            'email_to': mail_to,
+            'recipient_ids': recipient_links,
             'auto_delete': True,
             **({'email_cc': mail_cc} if mail_cc else {}),
         })
