@@ -93,13 +93,18 @@ class MailComposer(models.TransientModel):
             # 2. Create mail.mail with CC/BCC
             recipient_links = [(4, pid) for pid in self.partner_ids.ids]
 
+            att_ids = []
+            if self.attachment_ids:
+                self.attachment_ids.sudo().write({'res_model': 'mail.message', 'res_id': message.id})
+                att_ids = self.attachment_ids.ids
+
             mail_values = {
                 'mail_message_id': message.id,
                 'subject': self.subject,
                 'body_html': self.body,
                 'email_from': self.email_from,
                 'recipient_ids': recipient_links,
-                'auto_delete': True,
+                'attachment_ids': [(4, a) for a in att_ids],
             }
 
             if self.cc_email_partner_ids:
