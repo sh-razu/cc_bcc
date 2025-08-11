@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
+    <record id="view_mail_compose_message_form_required_to" model="ir.ui.view">
+        <field name="name">mail.compose.message.form.required.to</field>
+        <field name="model">mail.compose.message</field>
+        <field name="inherit_id" ref="mail.email_compose_message_wizard_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_ids']" position="attributes">
+                <attribute name="required">1</attribute>
+                <attribute name="domain">[('email','!=',False)]</attribute>
+                <attribute name="context">{'show_email': True}</attribute>
+            </xpath>
+        </field>
+    </record>
+
     <record id="view_mail_compose_message_form_inherit_cc_bcc" model="ir.ui.view">
         <field name="name">mail.compose.message.form.inherit.cc.bcc</field>
         <field name="model">mail.compose.message</field>

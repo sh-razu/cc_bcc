@@ -44,7 +44,6 @@ class SaleOrderCancel(models.TransientModel):
     def action_send_mail_and_cancel(self):
         self.ensure_one()
 
-        # ✅ Validate: must have at least one email recipient
         valid_to = self.recipient_ids.filtered(lambda p: p.email)
         if not valid_to:
             raise UserError("Please select at least one recipient with a valid email in the 'To' field before sending.")
@@ -53,8 +52,8 @@ class SaleOrderCancel(models.TransientModel):
         MailMail = self.env['mail.mail'].sudo()
         MailNotification = self.env['mail.notification'].sudo()
 
-        # 1. Create mail.message for logging
-        message = MailMessage.create({
+        # 1) chatter comment (white)
+        msg_comment = MailMessage.create({
             'model': 'sale.order',
             'res_id': self.order_id.id,
             'subject': self.subject or f"Order {self.order_id.name} Cancelled",
@@ -66,35 +65,36 @@ class SaleOrderCancel(models.TransientModel):
             'subtype_id': self.env.ref('mail.mt_comment').id,
         })
 
-        # 2. Build mail.mail
-        mail_values = {
-            'mail_message_id': message.id,
-            'subject': message.subject,
-            'body_html': message.body,
-            'email_from': message.email_from,
+        qweb = self.env['ir.qweb']
+        wrapped = qweb._render('mail.mail_notification_light', {
+            'body': msg_comment.body or '',
+            'company': self.order_id.company_id,
+            'record': self.order_id,
+            'message': msg_comment,
+            # ensure header text: “Your Sales Order”
+            'model_description': getattr(self.order_id, '_description', 'Sales Order'),
+        })
+        body_html = wrapped.decode() if isinstance(wrapped, bytes) else wrapped
+
+        mail = MailMail.create({
+            'subject': msg_comment.subject,
+            'email_from': msg_comment.email_from,
             'recipient_ids': [(4, pid) for pid in valid_to.ids],
             'auto_delete': True,
-        }
-
-        # CC
-        if self.cc_email_partner_ids:
-            cc_emails = [p.email for p in self.cc_email_partner_ids if p.email]
-            if cc_emails:
-                mail_values['email_cc'] = ','.join(cc_emails)
-
-        # BCC
-        if self.bcc_email_partner_ids:
-            bcc_emails = [p.email for p in self.bcc_email_partner_ids if p.email]
-            if bcc_emails:
-                mail_values['email_bcc'] = ','.join(bcc_emails)
-
-        mail = MailMail.create(mail_values)
+            'body_html': body_html,
+        })
         mail.send()
 
-        # 3. Notifications
+        # 3) notifications → link to a separate “email” message, not the chatter comment
+        msg_email = MailMessage.create({
+            'subject': msg_comment.subject,
+            'body': body_html,
+            'email_from': msg_comment.email_from,
+            'message_type': 'email',
+        })
         MailNotification.create([{
             'res_partner_id': pid,
-            'mail_message_id': message.id,
+            'mail_message_id': msg_email.id,
             'mail_mail_id': mail.id,
             'notification_status': 'sent',
             'notification_type': 'email',
@@ -102,5 +102,5 @@ class SaleOrderCancel(models.TransientModel):
             'author_id': self.author_id.id,
         } for pid in valid_to.ids])
 
-        # 4. Cancel sale order
+        # 4) cancel order (state change)
         return self.action_cancel()
