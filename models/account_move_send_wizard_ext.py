@@ -6,7 +6,7 @@ class AccountMoveSendWizardExt(models.TransientModel):
     _inherit = 'account.move.send.wizard'
 
     cc_email_partner_ids = fields.Many2many('res.partner', 'cc_partners', string='CC Email', )
-    bcc_email_partner_ids = fields.Many2many('res.partner', 'bcc_partners', string='CC Email', )
+    bcc_email_partner_ids = fields.Many2many('res.partner', 'bcc_partners', string='BCC Email', )
 
     def default_get(self, fields_list):
         defaults = super().default_get(fields_list)
@@ -17,6 +17,17 @@ class AccountMoveSendWizardExt(models.TransientModel):
             return defaults
 
         res_ids = res_ids if isinstance(res_ids, list) else [res_ids]
+
+        # RULE 1: settings override (if enabled and has partners)
+        ICP = self.env['ir.config_parameter'].sudo()
+        if ICP.get_param('cc_bcc.enable_custom_partner') in ('1', 'True', 'true', 'yes', 'y'):
+            csv_ids = (ICP.get_param('cc_bcc.custom_partner_ids') or '').strip()
+            cfg_ids = [int(x) for x in csv_ids.split(',') if x.strip().isdigit()] if csv_ids else []
+            if cfg_ids:
+                defaults['cc_email_partner_ids'] = [(6, 0, list(set(cfg_ids)))]
+                return defaults
+
+        # RULE 2: fallback — responsible (invoice user’s partner)
         partner_ids = []
 
         for move in self.env['account.move'].browse(res_ids):
@@ -49,36 +60,3 @@ class AccountMoveSendWizardExt(models.TransientModel):
                 params['email_cc'] = ','.join(emails)
 
         return params
-
-    def action_send_and_print(self, allow_fallback_pdf=False):
-        self.ensure_one()
-
-        if not self.mail_partner_ids:
-            raise UserError("Please select at least one recipient in the 'To' field before sending.")
-
-        mail_to = ','.join(filter(None, self.mail_partner_ids.mapped('email')))
-        mail_cc = ','.join(filter(None, self.cc_email_partner_ids.mapped('email')))
-
-        mail = self.env['mail.mail'].create({
-            'subject': self.mail_subject,
-            'body_html': self.mail_body,
-            'email_from': self.env.user.email_formatted,
-            'email_to': mail_to,
-            'auto_delete': True,
-            **({'email_cc': mail_cc} if mail_cc else {}),
-        })
-
-        mail.send()
-        return {'type': 'ir.actions.act_window_close'}
-
-    @api.depends('mail_template_id', 'mail_lang')
-    def _compute_mail_subject_body_partners(self):
-        for wizard in self:
-            if wizard.mail_template_id:
-                # Get values as usual
-                wizard.mail_subject = self._get_default_mail_subject(wizard.move_id, wizard.mail_template_id, wizard.mail_lang)
-                wizard.mail_body = self._get_default_mail_body(wizard.move_id, wizard.mail_template_id, wizard.mail_lang)
-
-                block_templates = {'Invoice: Sending'}
-                if wizard.mail_template_id.name in block_templates:
-                    wizard.mail_partner_ids = False

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="view_validate_picking_email_wizard" model="ir.ui.view">
+        <field name="name">validate.picking.email.wizard.form</field>
+        <field name="model">validate.picking.email.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Add CC for Validation Email">
+                <group>
+                    <field name="picking_id" invisible="1"/>
+                    <field name="cc_partner_ids" widget="many2many_tags" placeholder="Choose CC partners..."/>
+                </group>
+                <footer>
+                    <button name="action_save_cc" type="object" string="Save" class="btn-primary oe_highlight"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
